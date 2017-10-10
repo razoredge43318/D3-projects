@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+    body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        width: 960px;
+        height: 500px;
+        position: relative;
+    }
+
+    svg {
+        width: 150%;
+        height: 100%;
+        float: left;
+    }
+
+    text {
+        font: 10px sans-serif;
+        color: white;
+    }
+
+    text.value {
+        font-size: 120%;
+        fill: white;
+    }
+
+    .bar {
+        fill: steelblue;
+        fill-opacity: .9;
+    }
+
+    path {
+        stroke: steelblue;
+        stroke-width: 1;
+        fill: none;
+    }
+
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: grey;
+        stroke-width: 1;
+        shape-rendering: crispEdges;
+    }
+</style>
+<body>
+
+<script src="https://d3js.org/d3.v3.min.js"></script>
+<script>
+
+    // data in an array of objects of objects format
+    data = [{club:'Manchester United',value:{year_2013:3165, year_2014:2810, year_2015:3100, year_2016:3317, year_2017:4583}},
+    {club:'Chelsea',value:{year_2013:901, year_2014:868, year_2015:1370, year_2016:1661, year_2017:1845}},
+    {club:'Manchester City',value:{year_2013:689, year_2014:863, year_2015:1380, year_2016:1921, year_2017:2083}},
+    {club:'Liverpool',value:{year_2013:651, year_2014:704, year_2015:982, year_2016:1548, year_2017:1492}},
+    {club:'Arsenal',value:{year_2013:1326, year_2014:1331, year_2015:1310, year_2016:2017, year_2017:1932}}]
+
+    // convertings value of clubs from an object to an array for easier manipulation
+    for (i=0;i<data.length;i++){
+        var values = [data[i].value.year_2013,data[i].value.year_2014,data[i].value.year_2015,data[i].value.year_2016,data[i].value.year_2017]
+        data[i].values = values
+    }
+
+    // defining the variables
+    var axisMargin = 20,
+            margin = 40,
+            valueMargin = 20,
+            width = parseInt(d3.select('body').style('width'), 10),
+            height = parseInt(d3.select('body').style('height'), 10),
+            barHeight = (height-axisMargin-margin*2)* 0.4/data.length,
+            barPadding = (height-axisMargin-margin*2)*0.6/data.length,
+            data, bar, svg, scale, xAxis, labelWidth = 0;
+
+    // building the svg canvas
+    svg = d3.select('body')
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+    // entering data
+    bar = svg.selectAll("g")
+            .data(data)
+            .enter()
+            .append("g");
+
+    // positioning the bar class
+    bar.attr("class", "bar")
+            .attr("cx",0)
+            .attr("transform", function(d, i) {
+                return "translate(" + margin + "," + (i * (barHeight + barPadding) + barPadding) + ")";
+            });
+
+    // appending text to the y axis
+    bar.append("text")
+            .attr("class", "label")
+            .attr("y", barHeight / 2)
+            .attr("dy", ".35em")
+            .text(function(d){return d.club;})
+            .each(function() {
+            labelWidth = Math.ceil(Math.max(labelWidth, this.getBBox().width));});
+
+    // defining the scale
+    scale = d3.scale.linear()
+            .domain([0, d3.max(data, function(d) { return d3.sum(d.values); })])
+            .range([0, width - margin*2 - labelWidth]);
+
+    // defining the position and color of the individual bars
+    bar.append("rect")
+            .attr("transform", "translate("+labelWidth+", 0)")
+            .attr("height", barHeight)
+            .on("mouseover", function(d) {
+            linechart(d.values)
+            d3.select(this)
+            .attr("fill", "red");})
+            .on("mouseout",
+            function() {
+            d3.select(".lchart").remove()
+            d3.select(this)
+            .attr("fill", "steelblue");})
+            .attr("width", function(d){
+                return scale(d3.sum(d.values));
+            });
+
+    // adding text to the bars
+    bar.append("text")
+            .attr("class", "value")
+            .attr("y", barHeight / 2)
+            .attr("dx", -valueMargin + labelWidth)
+            .attr("dy", ".35em")
+            .attr("text-anchor", "end")
+            .text(function(d){
+                return ("$"+d3.sum(d.values));
+            })
+            .attr("x", function(d){
+                var width = this.getBBox().width;
+                return Math.max(width + valueMargin, scale(d3.sum(d.values)));
+            });
+
+
+
+    //Linechart function below:
+    var linechart = function(valuelist){
+
+    var margin = {top: 50, right: 10, bottom: 30, left: 10},
+    width = 350 - margin.left - margin.right,
+    height = 300 - margin.top - margin.bottom;
+
+    // Set the ranges
+    var x = d3.scale.linear().range([0, width]);
+    var y = d3.scale.linear().range([height, 0]);
+
+    // Define the axes
+    var xAxis = d3.svg.axis().scale(x)
+        .orient("bottom").ticks(5)
+        .tickFormat(function(d,i) { return "201" + (i+3);});
+
+    var yAxis = d3.svg.axis().scale(y)
+        .orient("left").ticks(5);
+
+    // Define the line
+    var valueline = d3.svg.line()
+        .x(function(d,i) { return x(i+2013); })
+        .y(function(d) { return y(d); });
+
+    // Append linechart to svg
+    var chart = svg.append("g")
+            .attr("class","lchart")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .attr("transform",
+                  "translate(" + 1000 + "," + margin.top + ")");
+
+    // Scale the range
+    x.domain([2013,2017]);
+    y.domain([0, d3.max(valuelist, function(d) { return d; })]);
+
+    // Add the valueline path.
+    chart.append("path")
+        .attr("class", "line")
+        .attr("d", valueline(valuelist));
+
+    // Add the X Axis
+    chart.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis);
+
+    // Add the Y Axis
+    chart.append("g")
+        .attr("class", "y axis")
+        .call(yAxis);
+
+    }
+</script>
+</body>
